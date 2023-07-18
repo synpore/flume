@@ -67,4 +67,9 @@ public class TaildirSourceConfigurationConstants {
   /** The max number of batch reads from a file in one loop */
   public static final String MAX_BATCH_COUNT = "maxBatchCount";
   public static final Long DEFAULT_MAX_BATCH_COUNT = Long.MAX_VALUE;
+  // Whether to support recursion
+  public static final String RECURSIVE = "recursive";
+
+  public static final boolean DEFAULT_RECURSIVE = false;
+
 }

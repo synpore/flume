@@ -89,6 +89,8 @@ public class TaildirSource extends AbstractSource implements
   private String fileHeaderKey;
   private Long maxBatchCount;
 
+  private boolean recursive;
+
   @Override
   public synchronized void start() {
     logger.info("{} TaildirSource source starting with directory: {}", getName(), filePaths);
@@ -102,6 +104,7 @@ public class TaildirSource extends AbstractSource implements
           .cachePatternMatching(cachePatternMatching)
           .annotateFileName(fileHeader)
           .fileNameHeader(fileHeaderKey)
+              .recursive(recursive)
           .build();
     } catch (IOException e) {
       throw new FlumeException("Error instantiating ReliableTaildirEventReader", e);
@@ -196,6 +199,7 @@ public class TaildirSource extends AbstractSource implements
     if (sourceCounter == null) {
       sourceCounter = new SourceCounter(getName());
     }
+    this.recursive=context.getBoolean(RECURSIVE,DEFAULT_RECURSIVE);
   }
 
   @Override

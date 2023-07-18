@@ -60,6 +60,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   private boolean committed = true;
   private final boolean annotateFileName;
   private final String fileNameHeader;
+  private boolean recursive;
 
   /**
    * Create a ReliableTaildirEventReader to watch the given directory.
@@ -67,7 +68,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   private ReliableTaildirEventReader(Map<String, String> filePaths,
       Table<String, String, String> headerTable, String positionFilePath,
       boolean skipToEnd, boolean addByteOffset, boolean cachePatternMatching,
-      boolean annotateFileName, String fileNameHeader) throws IOException {
+      boolean annotateFileName, String fileNameHeader,boolean recursive) throws IOException {
     // Sanity checks
     Preconditions.checkNotNull(filePaths);
     Preconditions.checkNotNull(positionFilePath);
@@ -79,11 +80,11 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
 
     List<TaildirMatcher> taildirCache = Lists.newArrayList();
     for (Entry<String, String> e : filePaths.entrySet()) {
-      taildirCache.add(new TaildirMatcher(e.getKey(), e.getValue(), cachePatternMatching));
+      taildirCache.add(new TaildirMatcher(e.getKey(), e.getValue(), cachePatternMatching,recursive));
     }
     logger.info("taildirCache: " + taildirCache.toString());
     logger.info("headerTable: " + headerTable.toString());
-
+    this.recursive=recursive;
     this.taildirCache = taildirCache;
     this.headerTable = headerTable;
     this.addByteOffset = addByteOffset;
@@ -304,6 +305,8 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     private boolean skipToEnd;
     private boolean addByteOffset;
     private boolean cachePatternMatching;
+
+    private boolean recursive;
     private Boolean annotateFileName =
             TaildirSourceConfigurationConstants.DEFAULT_FILE_HEADER;
     private String fileNameHeader =
@@ -348,11 +351,15 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
       this.fileNameHeader = fileNameHeader;
       return this;
     }
+    public Builder recursive(boolean recursive) {
+      this.recursive = recursive;
+      return this;
+    }
 
     public ReliableTaildirEventReader build() throws IOException {
       return new ReliableTaildirEventReader(filePaths, headerTable, positionFilePath, skipToEnd,
                                             addByteOffset, cachePatternMatching,
-                                            annotateFileName, fileNameHeader);
+                                            annotateFileName, fileNameHeader,recursive);
     }
   }
 

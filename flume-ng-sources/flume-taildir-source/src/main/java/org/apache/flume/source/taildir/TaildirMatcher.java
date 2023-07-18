@@ -34,10 +34,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -93,6 +91,8 @@ public class TaildirMatcher {
   // cached content, files which matched the pattern within the parent directory
   private List<File> lastMatchedFiles = Lists.newArrayList();
 
+  private boolean recursive;
+
   /**
    * Package accessible constructor. From configuration context it represents a single
    * <code>filegroup</code> and encapsulates the corresponding <code>filePattern</code>.
@@ -133,6 +133,11 @@ public class TaildirMatcher {
     // sanity check
     Preconditions.checkState(parentDir.exists(),
         "Directory does not exist: " + parentDir.getAbsolutePath());
+  }
+
+  TaildirMatcher(String fileGroup, String filePattern, boolean cachePatternMatching,boolean recursive){
+    this(fileGroup,filePattern,cachePatternMatching);
+    this.recursive=recursive;
   }
 
   /**
@@ -194,7 +199,7 @@ public class TaildirMatcher {
     if (!cachePatternMatching ||
         lastSeenParentDirMTime < currentParentDirMTime ||
         !(currentParentDirMTime < lastCheckedTime)) {
-      lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache());
+      lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache(this.recursive));
       lastSeenParentDirMTime = currentParentDirMTime;
       lastCheckedTime = now;
     }
@@ -230,6 +235,37 @@ public class TaildirMatcher {
     }
     return result;
   }
+
+
+  private List<File> getMatchingFilesNoCache(boolean recursion) {
+    if (!recursion) {
+      return getMatchingFilesNoCache();
+    }
+    List<File> result = Lists.newArrayList();
+    // 使用非递归的方式遍历文件夹
+    Queue<File> dirs = new ArrayBlockingQueue<>(10);
+    dirs.offer(parentDir);
+    while (dirs.size() > 0) {
+      File dir = dirs.poll();
+      try {
+        DirectoryStream<Path> stream = Files.newDirectoryStream(dir.toPath(), fileFilter);
+        stream.forEach(path -> result.add(path.toFile()));
+      } catch (IOException e) {
+        logger.error("I/O exception occurred while listing parent directory. " +
+                "Files already matched will be returned. (recursion)" + parentDir.toPath(), e);
+      }
+      File[] dirList = dir.listFiles();
+      assert dirList != null;
+      for (File f : dirList) {
+        if (f.isDirectory()) {
+          dirs.add(f);
+        }
+      }
+    }
+    return result;
+  }
+
+
 
   /**
    * Utility function to sort matched files based on last modification time.
