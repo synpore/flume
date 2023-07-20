@@ -196,10 +196,19 @@ public class TaildirMatcher {
     // - directory was clearly updated after the last check OR
     // - last mtime change wasn't already checked for sure
     //   (system clock hasn't passed that second yet)
+    logger.debug("parentDir is"+parentDir.toPath());
+    logger.debug("getMatchingFiles cachePatternMatching="+cachePatternMatching+",lastSeenParentDirMTime="+lastSeenParentDirMTime
+    +",currentParentDirMTime="+currentParentDirMTime+",lastCheckedTime="+lastCheckedTime);
     if (!cachePatternMatching ||
         lastSeenParentDirMTime < currentParentDirMTime ||
         !(currentParentDirMTime < lastCheckedTime)) {
-      lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache(this.recursive));
+
+      try {
+        lastMatchedFiles = sortByLastModifiedTime(getMatchingFilesNoCache(this.recursive));
+      } catch (IOException e) {
+        logger.error("getMatchingFiles IO exception",e);
+        throw new RuntimeException(e);
+      }
       lastSeenParentDirMTime = currentParentDirMTime;
       lastCheckedTime = now;
     }
@@ -237,7 +246,7 @@ public class TaildirMatcher {
   }
 
 
-  private List<File> getMatchingFilesNoCache(boolean recursion) {
+  private List<File> getMatchingFilesNoCache(boolean recursion) throws IOException {
     if (!recursion) {
       return getMatchingFilesNoCache();
     }
@@ -247,12 +256,17 @@ public class TaildirMatcher {
     dirs.offer(parentDir);
     while (dirs.size() > 0) {
       File dir = dirs.poll();
+      DirectoryStream<Path> stream=null;
       try {
-        DirectoryStream<Path> stream = Files.newDirectoryStream(dir.toPath(), fileFilter);
+             stream = Files.newDirectoryStream(dir.toPath(), fileFilter);
         stream.forEach(path -> result.add(path.toFile()));
       } catch (IOException e) {
         logger.error("I/O exception occurred while listing parent directory. " +
                 "Files already matched will be returned. (recursion)" + parentDir.toPath(), e);
+      }finally {
+        if(stream!=null){
+          stream.close();
+        }
       }
       File[] dirList = dir.listFiles();
       assert dirList != null;
@@ -261,6 +275,7 @@ public class TaildirMatcher {
           dirs.add(f);
         }
       }
+
     }
     return result;
   }
