@@ -252,7 +252,7 @@ public class TaildirMatcher {
     }
     List<File> result = Lists.newArrayList();
     // 使用非递归的方式遍历文件夹
-    Queue<File> dirs = new ArrayBlockingQueue<>(10);
+    Queue<File> dirs = new ArrayBlockingQueue<>(TaildirSourceConfigurationConstants.DEFAULT_SCAN_DIRECTORY_NUM);
     dirs.offer(parentDir);
     while (dirs.size() > 0) {
       File dir = dirs.poll();

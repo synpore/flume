@@ -72,4 +72,7 @@ public class TaildirSourceConfigurationConstants {
 
   public static final boolean DEFAULT_RECURSIVE = false;
 
+  /** the max number of directory for recursive scan */
+  public static final int DEFAULT_SCAN_DIRECTORY_NUM =1000;
+
 }
