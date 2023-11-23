@@ -62,13 +62,15 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   private final String fileNameHeader;
   private boolean recursive;
 
+  private String multiLineRegex;
+
   /**
    * Create a ReliableTaildirEventReader to watch the given directory.
    */
   private ReliableTaildirEventReader(Map<String, String> filePaths,
       Table<String, String, String> headerTable, String positionFilePath,
       boolean skipToEnd, boolean addByteOffset, boolean cachePatternMatching,
-      boolean annotateFileName, String fileNameHeader,boolean recursive) throws IOException {
+      boolean annotateFileName, String fileNameHeader,boolean recursive,String multiLineRegex) throws IOException {
     // Sanity checks
     Preconditions.checkNotNull(filePaths);
     Preconditions.checkNotNull(positionFilePath);
@@ -91,6 +93,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     this.cachePatternMatching = cachePatternMatching;
     this.annotateFileName = annotateFileName;
     this.fileNameHeader = fileNameHeader;
+    this.multiLineRegex=multiLineRegex;
     updateTailFiles(skipToEnd);
 
     logger.info("Updating position from position file: " + positionFilePath);
@@ -194,7 +197,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
       long lastPos = currentFile.getPos();
       currentFile.updateFilePos(lastPos);
     }
-    List<Event> events = currentFile.readEvents(numEvents, backoffWithoutNL, addByteOffset);
+    List<Event> events = currentFile.readEvents(numEvents, backoffWithoutNL, addByteOffset,this.multiLineRegex);
     if (events.isEmpty()) {
       return events;
     }
@@ -307,6 +310,8 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
     private boolean cachePatternMatching;
 
     private boolean recursive;
+
+    private String multiLineRegex;
     private Boolean annotateFileName =
             TaildirSourceConfigurationConstants.DEFAULT_FILE_HEADER;
     private String fileNameHeader =
@@ -356,10 +361,15 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
       return this;
     }
 
+    public Builder multiLineRegex(String multiLineRegex) {
+      this.multiLineRegex = multiLineRegex;
+      return this;
+    }
+
     public ReliableTaildirEventReader build() throws IOException {
       return new ReliableTaildirEventReader(filePaths, headerTable, positionFilePath, skipToEnd,
                                             addByteOffset, cachePatternMatching,
-                                            annotateFileName, fileNameHeader,recursive);
+                                            annotateFileName, fileNameHeader,recursive,multiLineRegex);
     }
   }
 

@@ -91,6 +91,8 @@ public class TaildirSource extends AbstractSource implements
 
   private boolean recursive;
 
+  private String multiLineRegex;
+
   @Override
   public synchronized void start() {
     logger.info("{} TaildirSource source starting with directory: {}", getName(), filePaths);
@@ -105,6 +107,7 @@ public class TaildirSource extends AbstractSource implements
           .annotateFileName(fileHeader)
           .fileNameHeader(fileHeaderKey)
               .recursive(recursive)
+              .multiLineRegex(multiLineRegex)
           .build();
     } catch (IOException e) {
       throw new FlumeException("Error instantiating ReliableTaildirEventReader", e);
@@ -200,6 +203,7 @@ public class TaildirSource extends AbstractSource implements
       sourceCounter = new SourceCounter(getName());
     }
     this.recursive=context.getBoolean(RECURSIVE,DEFAULT_RECURSIVE);
+    this.multiLineRegex=context.getString(MULTI_LINE_REGEX,"");
   }
 
   @Override

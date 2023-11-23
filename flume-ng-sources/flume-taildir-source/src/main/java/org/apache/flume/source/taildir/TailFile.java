@@ -20,6 +20,7 @@
 package org.apache.flume.source.taildir;
 
 import com.google.common.collect.Lists;
+import org.apache.commons.lang.StringUtils;
 import org.apache.flume.Event;
 import org.apache.flume.event.EventBuilder;
 import org.slf4j.Logger;
@@ -53,6 +54,10 @@ public class TailFile {
   private byte[] oldBuffer;
   private int bufferPos;
   private long lineReadPos;
+
+  //缓存当前event
+  private String lasteLine = "";
+
 
   public TailFile(File file, Map<String, String> headers, long inode, long pos)
       throws IOException {
@@ -136,11 +141,10 @@ public class TailFile {
   }
 
 
-  public List<Event> readEvents(int numEvents, boolean backoffWithoutNL,
-      boolean addByteOffset) throws IOException {
+  public List<Event> readEvents(int numEvents, boolean backoffWithoutNL, boolean addByteOffset,String regex) throws IOException {
     List<Event> events = Lists.newLinkedList();
     for (int i = 0; i < numEvents; i++) {
-      Event event = readEvent(backoffWithoutNL, addByteOffset);
+      Event event = readEvent(backoffWithoutNL, addByteOffset,regex);
       if (event == null) {
         break;
       }
@@ -149,21 +153,38 @@ public class TailFile {
     return events;
   }
 
-  private Event readEvent(boolean backoffWithoutNL, boolean addByteOffset) throws IOException {
+  private Event readEvent(boolean backoffWithoutNL, boolean addByteOffset, String regex) throws IOException {
     Long posTmp = getLineReadPos();
-    LineResult line = readLine();
-    if (line == null) {
-      return null;
+    String totalLine = lasteLine;
+    LineResult line = null;
+    while(true){
+      line = readLine();
+      if (line == null) {
+        lasteLine = "";
+        break;
+      }
+      if (backoffWithoutNL && !line.lineSepInclude) {
+        logger.info("Backing off in file without newline: "
+                + path + ", inode: " + inode + ", pos: " + raf.getFilePointer());
+        updateFilePos(posTmp);
+        lasteLine = "";
+        break;
+      }
+      String lineContext = new String(line.line, "UTF-8");
+      //配置了多行日志匹配的正则表达式后才进行匹配，否则按照单行日志采集
+      if (StringUtils.isNotBlank(regex)&&lineContext.matches(regex) == false) {
+        totalLine = totalLine + "\n" + lineContext;
+      } else {
+        lasteLine = lineContext;
+        break;
+      }
     }
-    if (backoffWithoutNL && !line.lineSepInclude) {
-      logger.info("Backing off in file without newline: "
-          + path + ", inode: " + inode + ", pos: " + raf.getFilePointer());
-      updateFilePos(posTmp);
-      return null;
-    }
-    Event event = EventBuilder.withBody(line.line);
-    if (addByteOffset == true) {
-      event.getHeaders().put(BYTE_OFFSET_HEADER_KEY, posTmp.toString());
+    Event event = null;
+    if(totalLine!=""){
+       event = EventBuilder.withBody(totalLine.toString().getBytes("UTF-8"));
+      if (addByteOffset == true) {
+        event.getHeaders().put(BYTE_OFFSET_HEADER_KEY, posTmp.toString());
+      }
     }
     return event;
   }

@@ -75,4 +75,11 @@ public class TaildirSourceConfigurationConstants {
   /** the max number of directory for recursive scan */
   public static final int DEFAULT_SCAN_DIRECTORY_NUM =1000;
 
+  /**
+   * 多行数据采集正则公式
+   */
+  public static final String MULTI_LINE_REGEX = "multiLineRegex";
+
+
+
 }
